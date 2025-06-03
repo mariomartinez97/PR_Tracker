@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>PR Tracker</title>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-firestore-compat.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="p-4">
+
+  <div id="auth-status" class="mb-4">
+    <span id="user-email" class="text-sm text-gray-600"></span>
+    <button id="logout-btn" class="bg-gray-600 text-white px-2 py-1 rounded">Sign Out</button>
+  </div>
+
+  <h2 class="text-xl font-bold mb-2">Submit PR Timeline</h2>
+  <form id="pr-form" class="grid grid-cols-2 gap-2 mb-6">
+    <input type="date" id="ita" placeholder="ITA" class="border p-1" />
+    <input type="date" id="aor" placeholder="AOR" class="border p-1" />
+    <input type="date" id="fd" placeholder="FD" class="border p-1" />
+    <input type="date" id="p1" placeholder="P1" class="border p-1" />
+    <input type="date" id="p2" placeholder="P2" class="border p-1" />
+    <input type="date" id="ecopr" placeholder="eCOPR" class="border p-1" />
+    <input type="date" id="card" placeholder="PR Card" class="border p-1" />
+    <button type="submit" class="col-span-2 bg-blue-500 text-white py-1 rounded">Save</button>
+  </form>
+
+  <h3 class="text-lg font-semibold mb-2">Your Submissions</h3>
+  <ul id="submissions" class="space-y-2"></ul>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCWb2JBGqgx0EKiBhxXyN4C63ZB3A-XKgQ",
+      authDomain: "pr-tracker-4d04e.firebaseapp.com",
+      projectId: "pr-tracker-4d04e",
+      storageBucket: "pr-tracker-4d04e.firebasestorage.app",
+      messagingSenderId: "1007677319821",
+      appId: "1:1007677319821:web:63b7b13b3f0c3e474850c4",
+      measurementId: "G-Q6T3M0W94Y"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    const fields = ["ita", "aor", "fd", "p1", "p2", "ecopr", "card"];
+
+    const form = document.getElementById("pr-form");
+    const submissionsEl = document.getElementById("submissions");
+    const logoutBtn = document.getElementById("logout-btn");
+    const userEmail = document.getElementById("user-email");
+
+    logoutBtn.onclick = () => auth.signOut();
+
+    function daysBetween(start, end) {
+      if (!start || !end) return null;
+      return Math.floor((new Date(end) - new Date(start)) / (1000 * 60 * 60 * 24));
+    }
+
+    function renderSubmission(doc) {
+      const data = doc.data();
+      const li = document.createElement("li");
+      li.className = "border p-2 rounded bg-white shadow";
+      li.innerHTML = `
+        <strong>ID:</strong> ${doc.id}<br/>
+        ${fields.map(f => `${f.toUpperCase()}: ${data[f] || "—"}`).join("<br/>")}<br/>
+        <em>Total Steps:</em> ${fields.filter(f => data[f]).length}
+      `;
+      submissionsEl.appendChild(li);
+    }
+
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) return window.location.href = "login.html";
+
+      userEmail.textContent = `Logged in as ${user.email}`;
+
+      // Load user's submissions
+      const snapshot = await db.collection("users").doc(user.uid)
+        .collection("pr_applications").get();
+
+      snapshot.forEach(renderSubmission);
+    });
+
+    form.onsubmit = async (e) => {
+      e.preventDefault();
+      const user = auth.currentUser;
+      if (!user) return alert("You must be logged in");
+
+      const data = {};
+      fields.forEach(f => data[f] = document.getElementById(f).value);
+
+      const collectionRef = db.collection("users").doc(user.uid).collection("pr_applications");
+      await collectionRef.add(data);
+
+      alert("Submission saved");
+      window.location.reload();
+    };
+  </script>
+</body>
+</html>
